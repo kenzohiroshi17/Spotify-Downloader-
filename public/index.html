@@ -13,11 +13,11 @@
             color: #fff;
             padding: 20px;
             margin: 0;
-            height: 100vh;
+            min-height: 100vh;
             display: flex;
             flex-direction: column;
             align-items: center;
-            overflow: hidden;
+            overflow-y: auto;
         }
         h1 {
             text-align: center;
@@ -62,8 +62,6 @@
             grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
             gap: 20px;
             margin-top: 20px;
-            overflow-y: auto;
-            max-height: 60vh;
             animation: fadeIn 0.5s;
         }
         .songDiv {
@@ -72,38 +70,46 @@
             border-radius: 10px;
             background: rgba(255, 255, 255, 0.1);
             text-align: center;
-            transition: transform 0.2s;
+            transition: transform 0.2s, box-shadow 0.2s;
         }
         .songDiv:hover {
             transform: scale(1.05);
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.2);
         }
         img {
             width: 100px;
             border-radius: 10px;
             margin-bottom: 10px;
         }
-        .download-button, .spotify-button, .play-button {
-            margin-top: 5px;
+        .button-group {
+            display: flex;
+            justify-content: space-around;
+            gap: 10px;
+            margin-top: 10px;
+            flex-wrap: wrap;
+        }
+        .button-group a, .button-group button {
             padding: 10px 15px;
             border-radius: 5px;
             text-decoration: none;
             transition: background-color 0.3s, transform 0.3s;
-            display: inline-block;
+            font-size: 14px;
+            cursor: pointer;
+            flex: 1;
+            margin: 5px;
         }
-        .download-button, .play-button {
+        .button-group a {
             background-color: #1db954;
             color: #fff;
         }
-        .download-button:hover, .play-button:hover {
+        .button-group button {
+            background-color: #1db954;
+            color: #fff;
+            border: none;
+        }
+        .button-group a:hover, .button-group button:hover {
             background-color: #1aa34a;
             transform: translateY(-2px);
-        }
-        .spotify-button {
-            font-weight: bold;
-            background-color: rgba(29, 185, 84, 0.9);
-        }
-        .spotify-button:hover {
-            background-color: rgba(29, 185, 84, 1);
         }
         #audioPlayer {
             margin-top: 20px;
@@ -116,14 +122,39 @@
         }
         #errorMessage {
             display: none;
-            color: #ff4d4d;
-            margin-top: 10px;
-            animation: fadeIn 0.5s;
+            margin-top: 20px;
+            padding: 10px;
+            background-color: rgba(255, 0, 0, 0.8);
+            border-radius: 10px;
+            text-align: center;
+            opacity: 0;
+            transition: opacity 0.5s ease-in-out;
         }
         footer {
             text-align: center;
             margin-top: 20px;
             color: #ccc;
+        }
+        .owner-link {
+            color: #1db954;
+            font-weight: bold;
+            text-decoration: none;
+        }
+        .owner-link:hover {
+            text-decoration: underline;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        @keyframes fadeInDown {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes fadeOut {
+            0% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { opacity: 0; }
         }
     </style>
 </head>
@@ -138,28 +169,30 @@
         <source id="audioSource" src="" type="audio/mpeg">
         Your browser does not support the audio element.
     </audio>
-    <div id="errorMessage"></div>
+    <div id="errorMessage">Music cannot be found. Please try again.</div>
     <footer>
-        <p><a href="https://facebook.com/100091592152325" target="_blank">Owned by Jr Busaco</a></p>
+        <p>Owned by <a class="owner-link" href="https://www.facebook.com/YOUR_PROFILE_LINK" target="_blank">Jr Busaco</a></p>
     </footer>
 
     <script>
         document.getElementById('searchButton').addEventListener('click', async () => {
             const query = document.getElementById('searchInput').value;
             const response = await fetch(`/search?q=${encodeURIComponent(query)}`);
-            const data = await response.json();
-            displayResults(data);
+            if (response.ok) {
+                const data = await response.json();
+                if (data.length > 0) {
+                    displayResults(data);
+                } else {
+                    displayErrorMessage('Music cannot be found. Please try again.');
+                }
+            } else {
+                displayErrorMessage('Music cannot be found. Please try again.');
+            }
         });
 
         function displayResults(data) {
             const resultsDiv = document.getElementById('results');
             resultsDiv.innerHTML = '';
-
-            if (data.error) {
-                showError(data.error);
-                return;
-            }
-
             data.forEach(song => {
                 const songDiv = document.createElement('div');
                 songDiv.className = 'songDiv';
@@ -170,6 +203,9 @@
                 const songImage = document.createElement('img');
                 songImage.src = song.image;
                 songImage.alt = song.name;
+
+                const buttonGroup = document.createElement('div');
+                buttonGroup.className = 'button-group';
 
                 const trackLink = document.createElement('a');
                 trackLink.href = song.track;
@@ -187,11 +223,13 @@
                 playButton.className = 'play-button';
                 playButton.onclick = () => playMusic(song.download);
 
+                buttonGroup.appendChild(trackLink);
+                buttonGroup.appendChild(downloadButton);
+                buttonGroup.appendChild(playButton);
+
                 songDiv.appendChild(songImage);
                 songDiv.appendChild(songTitle);
-                songDiv.appendChild(trackLink);
-                songDiv.appendChild(downloadButton);
-                songDiv.appendChild(playButton);
+                songDiv.appendChild(buttonGroup);
                 resultsDiv.appendChild(songDiv);
             });
         }
@@ -205,14 +243,19 @@
             audioPlayer.play();
         }
 
-        function showError(message) {
-            const errorMessage = document.getElementById('errorMessage');
-            errorMessage.textContent = message;
-            errorMessage.style.display = 'block';
+        function displayErrorMessage(message) {
+            const errorMessageDiv = document.getElementById('errorMessage');
+            errorMessageDiv.textContent = message;
+            errorMessageDiv.style.display = 'block';
+            errorMessageDiv.style.opacity = '1';
             setTimeout(() => {
-                errorMessage.style.display = 'none';
+                errorMessageDiv.style.opacity = '0';
+                setTimeout(() => {
+                    errorMessageDiv.style.display = 'none';
+                }, 500);
             }, 3000);
         }
     </script>
 </body>
-</html>
+</html/>
+    
